@@ -1,5 +1,5 @@
 ---
-title: "Reading & Writing Spatial Files in R with sf package"
+title: "Reading & Writing Spatial Files in R"
 author: "Mike Proctor"
 format: gfm
 editor: visual
@@ -11,16 +11,59 @@ toc: true
 
 ## Some setup first --
 
+*I used the "sf::" prefix on all of the sf functions just to make things a little clearer when I'm working with spatial data.*
+
 ```{r}
 #| label: setup
+#| echo: true
+#| message: false
+#| warning: false
 
+suppressPackageStartupMessages(library(tidyverse))
+suppressMessages(library(rprojroot))
+library(sf)
+suppressMessages(library(tigris)) # Lots of layers available here
+options(tigris_use_cache = TRUE)
 
-source("Setup.R") # just load the libraries and paths - no data - depends on what I'm doing
-source("Spatial.R") # load libraries, paths, and data from tigris package
-
-library(tictoc) # an extra library used for timing
+## for rprojroot - pointers to folders in project
+base_path           <- find_rstudio_root_file()                     
+source_path         <- file.path(base_path, "source_data//")
+csv_path            <- file.path(base_path, "csv_output//") 
+dat_path            <- file.path(base_path, "dat_output//")
+#plot_path          <- file.path(base_path, "plots//")                 
+spatial_path        <- file.path(base_path, "spatial_output//")
 
 ```
+
+## Load some TIGER Census data with the tigris package
+
+<https://www.rdocumentation.org/packages/tigris/versions/2.1>
+
+<https://github.com/walkerke/tigris/tree/master>
+
+*Explicitly setting the crs when you load the file will save you much frustration later on.*
+
+```{r}
+#| message: false
+#| warning: false
+# Read the data in and explicitly set the crs ------
+
+state <- tigris::states() |> filter(STUSPS == "OK" | STUSPS == "TX")
+state <- sf::st_transform(state, crs = 32614)
+
+marshall <- tigris::counties("OK") |> filter(NAME == "Marshall")
+marshall <- sf::st_transform(marshall, crs = 32614)
+
+OK_Counties <- tigris::counties() |> filter(STATEFP == "40")
+OK_Counties <- sf::st_transform(OK_Counties, crs = 32614)
+
+TX_OK_Counties <- tigris::counties() |> filter(STATEFP == "40" | STATEFP == "48")
+TX_OK_Counties <- sf::st_transform(TX_OK_Counties, crs = 32614)
+
+
+
+```
+
 
 # Write a single layer to a geopackage
 
@@ -43,7 +86,7 @@ First off we need a bunch of layers to write
 rm(list = c("marshall", "state", "TX_OK_Counties"))# These are in the way at the moment so lets get rid of them.
 ```
 
-## Extract a list of the counties in the data frame
+### Extract a list of the counties in the data frame
 
 ```{r}
 #| label: countylist
@@ -52,7 +95,7 @@ CountyList <- unique(OK_Counties$NAME)
 CountyList
 ```
 
-## Write a function to pull each row out as a layer into the environment and name it according to the value in the NAME column
+### Write a function to pull each row out as a layer into the environment and name it according to the value in the NAME column
 
 ```{r}
 #| label: layerFunction
@@ -66,13 +109,18 @@ CountyList
 
 ```
 
-## Apply the function to the list of county names
+### Apply the function to the list of county names
+
+We only need a few data frames to demonstrate so lets filter the list down a bit first.
 
 ```{r}
 #| label: lapply1
 #| echo: true
 
-lapply(CountyList, Create_County_df)
+ShortList <- head(CountyList, 5)
+ShortList
+
+lapply(ShortList, Create_County_df)
 
 ```
 
@@ -87,28 +135,32 @@ There's two approaches here.
 ```{r}
 #| label: loop
 #| echo: true
+#| message: false
+#| warning: false
 
-tic() 
-for (i in CountyList) {
+
+for (i in ShortList) {
   
   sf::write_sf(get(i), paste0(spatial_path, "OK_Counties.gpkg"), i) # i is an object in first instance but character in layer name
   
 }
-toc()#110.23 sec
+
 ```
 
-### lapply over a vector of names
+### Use lapply over a vector of names
 
-Applies a function (in this case an anonymous function) to each object within a vector( a list - CountyList).
+Applies a function (in this case an anonymous function) to each object within a vector( a list - ShortList).
 
 ```{r}
 #| label: lapply2
 #| echo: true
+#| message: false
+#| warning: false
 
 
-tic()
-lapply(CountyList,function(z) sf::write_sf(get(z), paste0(spatial_path, "OK_Counties2.gpkg"), z)) # get() gets the object not the name
-toc()#107.41 sec
+
+lapply(ShortList,function(z) sf::write_sf(get(z), paste0(spatial_path, "OK_Counties2.gpkg"), z)) # get() gets the object not the name
+
 
 ```
 
@@ -116,43 +168,47 @@ toc()#107.41 sec
 
 ### List the layers in the geopackages we just wrote
 
-There should be 77 layers in each file
+There should be 5 layers in each file
 
-`sf::st_layers(paste0(spatial_path, "OK_Counties.gpkg"))`
+```{r}
+sf::st_layers(paste0(spatial_path, "OK_Counties.gpkg"))
+sf::st_layers(paste0(spatial_path, "OK_Counties2.gpkg"))
 
-`sf::st_layers(paste0(spatial_path, "OK_Counties2.gpkg"))`
 
-### Delete one layer - should get 76 rows
+```
+
+### Delete one layer - should get 4 rows
 
 ```{r}
 #| label: del1
 #| echo: true
+#| message: false
 
 sf::st_delete(paste0(spatial_path, "OK_Counties.gpkg"), "Marshall")
 sf::st_layers(paste0(spatial_path, "OK_Counties.gpkg")) # Check to see if it worked
 ```
 
-### Delete a list of layers - deleting 10 layers
+### Delete a list of layers - deleting 2 layers
 
 ```{r}
 #| label: del2
 #| echo: true
+#| message: false
 
 
-delList <- head(CountyList,10) # take the first 10 rows
-lapply(delList, function(y)      
-sf::st_delete(paste0(spatial_path, "OK_Counties2.gpkg"), y))
+delList <- head(ShortList,2) # take the first 2 rows
+lapply(delList, function(y)sf::st_delete(paste0(spatial_path, "OK_Counties2.gpkg"), y))
 sf::st_layers(paste0(spatial_path, "OK_Counties2.gpkg")) # Check to see if it worked
 
 ```
 
 # Shapefiles
 
-Most common format for spatial data - has some limitations - requires 4 files - column names are limited in length. When writing to a shapefile, column names may get truncated - this could be a problem if mulitple columns have similar names. Each layer requires a separate set of files. Writing the 77 layers above would require 4x77 files.
+Shapefiles are the most common format for spatial data but they have some limitations. The format requires 4 separate files and column names and data are limited in length. When writing to a shapefile, column names may get truncated - this could be a problem if mulitple columns have similar names. Each layer requires a separate set of files. Writing the 77 layers in CountyList from above would require 4x77 files.
 
 ## Write out a shape file
 
-### Write a file with a timestamp in filename - This works with any filename - csv, xlsx etc
+### Write a file with a time stamp in filename - This works with any filename - csv, xlsx etc
 
 *GDAL complains here because there are too many digits in the ALAND and AWATER fields - the answer is to not use a shape file.*
 
@@ -162,7 +218,7 @@ Most common format for spatial data - has some limitations - requires 4 files - 
 
 timestamp <- format(Sys.time(), "%Y%m%d_%H%M")
 
-sf::st_write(Osage, paste0(spatial_path, "Osage_County_", timestamp,".shp")) # Osage_County_20250303_1613.shp
+sf::st_write(Adair, paste0(spatial_path, "Adair_County_", timestamp,".shp")) #Adair_County_20250305_1126.shp
 
 
 ```
@@ -173,9 +229,9 @@ sf::st_write(Osage, paste0(spatial_path, "Osage_County_", timestamp,".shp")) # O
 #| label: st_read
 
 
-Osage_Shape <- sf::st_read(paste0(spatial_path, "Osage_County_", timestamp,".shp")) # I cheated here - how?
+Adair_Shape <- sf::st_read(paste0(spatial_path, "Adair_County_", timestamp,".shp")) # I cheated here - how?
 
-plot(Osage_Shape$geometry)
+plot(Adair_Shape$geometry)
 
 
 ```
@@ -187,27 +243,34 @@ The following code will remove the objects and reload everything that we'll need
 
 ```{r}
 #| label: housekeeping
-#| include: false
+#| echo: true
+#| message: false
 
 
 rm(list=ls())
-source("Spatial.R") # load libraries, paths, and data from tigris package
+base_path           <- find_rstudio_root_file()                     
+source_path         <- file.path(base_path, "source_data//")
+csv_path            <- file.path(base_path, "csv_output//") 
+dat_path            <- file.path(base_path, "dat_output//")
+
+TX_OK_Counties <- tigris::counties() |> filter(STATEFP == "40" | STATEFP == "48")
+TX_OK_Counties <- sf::st_transform(TX_OK_Counties, crs = 32614)
 
 ```
 
-# Comma Separated Values - csv
+# Comma Separated Values - CSV
 
-# Write to csv
+## Write to csv
 
 We don't need all the rows so let's filter some out
 
 ```{r}
 #| label: filter
-#| include: false
+#| echo: true
 
 
   TexomaList <- c("Marshall", "Bryan", "Cooke", "Grayson")
-  TexomaCounties <- TX_OK_Counties |> filter(NAME %in% TexomaList) # an "infix" symbol
+  TexomaCounties <- TX_OK_Counties |> filter(NAME %in% TexomaList) # %in% is an "infix" symbol
 
 ```
 
@@ -218,12 +281,21 @@ This will give us a set of points. Saving polygons to a csv isn't going to be al
 ```{r}
 #| label: centroid
 #| echo: true
+#| message: false
+#| warning: false
  TexomaCentroids <- sf::st_centroid(TexomaCounties)
 
 plot(TexomaCounties$geometry) + 
   plot(TexomaCentroids$geometry, add = TRUE, pch = 19, col = 2)
 
 ```
+
+***
+
+*These counties were intended to be those that surround Lake Texoma. One could argue that since I included Cooke county in the southwest I should probably include the county to the north of it as well (Love). How would you go about fixing that?*  
+
+***
+
 
 ### Create columns for coordinates from geometry column
 
@@ -242,7 +314,7 @@ Centroids <- TexomaCentroids %>% mutate("northing" = sf::st_coordinates(.)[,2],
 
 ### Write out the file
 
-I use a ".dat" extension often so that I know that date columns haven't been modified by excel. Otherwise they are just a csv.
+I use a ".dat" extension so that I know that the date columns haven't been modified accidentally by nosy people using excel(including myself). Otherwise they are just a csv.
 
 ```{r}
 #| label: write_centroids1
@@ -254,7 +326,7 @@ write_csv(Centroids, paste0(dat_path, "TexomaCountyCentroids", "_", timestamp, "
 
 ```
 
-### Too many columns - let's get rid of some
+### There's too many columns - let's get rid of some
 
 *I use the names of characters from the Dilbert comic strip when I can't come up with a meaningful df name.*
 
@@ -284,17 +356,15 @@ delList <-  c("CBSAFP", "CLASSFP", "COUNTYNS", "CSAFP", "FUNCSTAT", "GEOID", "IN
              "INTPTLON","METDIVFP","MTFCC","NAMELSAD", "LSAD" )
 alice <- Centroids |> select(-all_of(delList))
 
-
-
 ```
 
 #### Select by index (location)
 
 Be careful with indexing columns. If for some reason the number of columns, or order of columns changes upstream, it will wreak havoc on your data frame.
 
-I use indexing when I first load a df - sometimes its easier to index a column than to type some bizarre column name.
+I use indexing when I first load a data frame - sometimes its easier to index a column than to type some bizarre column name.
 
-If the df is already in some type of workflow where the columns could change, I avoid indexing. But by then I've changed the column name to something reasonable anyway.
+If the data frame is already in some type of workflow where the columns could change, I avoid indexing. But by then I've changed the column name to something reasonable anyway.
 
 ```{r}
 #| label: select3
@@ -308,7 +378,7 @@ ratbert <- Centroids |> dplyr::select(-2:-4, -6:-13)
 
 ```
 
-### The dogbert df has the most useful data so lets write it to a csv.
+### The dogbert data frame has the most useful data so lets write it to a csv.
 
 I'm using the same name with a time stamp so it won't overwrite what we did previously. It might be worthwhile to compare the files. Time stamps in file names are sometimes useful and other times not so much. Early in a project when I'm making lots of changes to the data I use them. Once I get downstream projects going that use the data, I take the time stamp off, so I don't have to change the file name every time I reload it in downstream scripts.
 
@@ -324,9 +394,9 @@ write_csv(dogbert, paste0(dat_path, "TexomaCountyCentroids", "_", timestamp, ".d
 
 ```
 
-# Read from a csv and convert to sf
+# Read from a csv and convert to an sf object
 
-Used "Import Dataset" here because the file name was so long
+I used "Import Dataset" here because the file name was so long and my typing is so bad.
 
 ```{r}
 #| label: read_csv
@@ -341,7 +411,7 @@ CountyCentroids <- read_csv(paste0(csv_path, "TexomaCountyCentroids_20250303_143
 
 ```
 
-## Convert csv with coordinate columns to sf object
+## Convert data frame with coordinate columns to sf object
 
 ```{r}
 #| label: convert_sf1
@@ -360,7 +430,7 @@ Make sure you get x and y coords in right order
 #| label: convert_sf2
 #| echo: true
 fred <- CountyCentroids |> 
-  sf::st_as_sf(coords=c("easting","northing"), crs=32614) # make sure you get x and y coords in right order
+  sf::st_as_sf(coords=c("easting","northing"), crs=32614) # x and y coords in right order
 
 plot(TexomaCounties$geometry, col = 3) +
 plot(fred$geometry, col = 2, pch = 19, add = TRUE)
