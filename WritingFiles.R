@@ -4,13 +4,21 @@
 ## ======================================================================
 # 2025-02-28 15:23:59.135478 ------------------------------mdp
 # 2025-03-03 11:49:11.672251 ------------------------------mdp
+# 2025-03-04 11:05:10.945072 ------------------------------mdp Convert to README for github
 
 
 source("Spatial.R")
 source("Setup.R") # just load the libraries and paths - no data
 library(tictoc)
 
-rm(list = c("marshall", "state", "TX_OK_Counties"))
+
+# Write a single layer to a geopackage
+sf::write_sf(marshall, paste0(spatial_path, "one_layer.gpkg"), "Marshall")
+sf::st_layers(paste0(spatial_path, "one_layer.gpkg"))
+
+
+# Writing multiple layers to a geopackage
+rm(list = c("marshall", "state", "TX_OK_Counties")) # These are in the way at the moment
 
 # Create a list of names
 CountyList <- unique(OK_Counties$NAME)
@@ -29,18 +37,18 @@ lapply(CountyList, Create_County_df)
 # Write multiple dfs to file ----------
 
 ### Loop over a list of sf data frames -----
-tic() #110.23 sec
+tic() 
 for (i in CountyList) {
   
   sf::write_sf(get(i), paste0(spatial_path, "OK_Counties.gpkg"), i) # i is an object in first instance but character in layer name
   
 }
-toc() 
+toc() #110.23 sec
 
 ### With lapply over a list of names --------
-tic()#107.41 sec
+tic()
 lapply(CountyList,function(z) sf::write_sf(get(z), paste0(spatial_path, "OK_Counties2.gpkg"), z)) # get() gets the object not the name
-toc()
+toc()#107.41 sec
 
 ### Lists layers in geopackage -------
 sf::st_layers(paste0(spatial_path, "OK_Counties.gpkg"))
@@ -78,67 +86,8 @@ Osage_Shape <- sf::st_read(paste0(spatial_path, "Osage_County_", timestamp,".shp
 plot(Osage_Shape$geometry)
 
 
-#  Setup for RAP project --------
-
-### Reading from a geopackage ---------
-
-#https://disasters.amerigeoss.org/datasets/geoplatform::historic-perimeters-combined-2000-2018-geomac/explore?location=36.089043%2C-105.783498%2C4.77
-#https://data-nifc.opendata.arcgis.com/datasets/5b3ff19978be49208d41a9d9a461ecfb/about
-
-st_layers(paste0(source_path, "Historic_Geomac_Perimeters_Combined_2000_2018_-7007592357689317076.gpkg")) 
-
-### Historical fires 2000-2018 --------
-HistFires <- sf::st_read(paste0(source_path, "Historic_Geomac_Perimeters_Combined_2000_2018_-7007592357689317076.gpkg"), "US_HIST_FIRE_PERIMTRS_2000_2018_DD83") |> 
-             dplyr::filter(state == "OK")
-HistFires <- sf::st_transform(HistFires, crs = 32614)
-
-### Just the Ferguson fire --------
-Ferguson <- HistFires |> dplyr::filter(incidentname == "Ferguson")
-Ferguson_buffered_20 <- Ferguson |> sf::st_buffer(dist = -20) # buffered by -20m to get away from edge effects along roads etc
-
-### Just the burn scar
-plot(Ferguson$SHAPE) 
-
-  ### add the buffer
-plot(Ferguson$SHAPE) +
-plot(Ferguson_buffered_20$SHAPE, add = TRUE)
-
-
-### Get the county from tigris in Spatial.R -------
-Comanche <- TX_OK_Counties |> filter(NAME == "Comanche" & STATEFP == "40") # TX has a Comanche county as well
-
-### General vicinity
-  ggplot() +
-  geom_sf(data = OK_Counties$geometry) + # using the layer with the largest extents first
-  geom_sf(data = Ferguson$SHAPE, aes(fill = "blue")) +
-  theme(legend.position = "none") +
-  ggtitle(paste0("Location of Ferguson Fire - Comanche County, OK - 2011-09-08")) 
-
-### General vicinity County level
-  ggplot() +
-    geom_sf(data = Comanche$geometry) +
-    geom_sf(data = Ferguson$SHAPE, aes(fill = "blue")) +
-    theme(legend.position = "none") +
-    ggtitle(paste0("Location of Ferguson Fire - Comanche County, OK - 2011-09-08")) 
   
   
-
-### Create random sample sites ---------
-set.seed(10) # run this and st_sample in same call
-SampleSites <- sf::st_sample(Ferguson_buffered_20, size = 30, type = "random") 
-
-  plot(Ferguson$SHAPE) +
-  plot(SampleSites, add = TRUE, pch = 19, col = 3)
-
-
-### Write out polygon and sites to geopackage ------
-  
-  sf::write_sf(Ferguson, paste0(spatial_path, "Ferguson_Fire.gpkg"), "Ferguson_Fire") 
-  sf::write_sf(SampleSites, paste0(spatial_path, "Ferguson_Fire.gpkg"), "SampleSites") 
-  
-  sf::st_layers(paste0(spatial_path, "Ferguson_Fire.gpkg")) 
-  
-# End of RAP stuff
   
 
 # Write to csv ----
@@ -188,11 +137,15 @@ dogbert <- Centroids |> dplyr::select(1,5,14:19)
 # Exclude by index
 ratbert <- Centroids |> dplyr::select(-2:-4, -6:-13)
 
-#  Be careful with indexing columns.  If for some reason the number of columns,  
-#  or order of columns even changes upstream, it will wreak havoc on your data frame.
-#  I use indexing when I first bring in a df - sometimes easier to index a column than to type some bizarre column name.
-#  If the df is already in some type of workflow where the columns could change I avoid indexing.  But by then I've 
-#  changed the column name to something reasonable anyway
+ # Be careful with indexing columns.  If for some reason the number of columns,
+ # or order of columns changes upstream, it will wreak havoc on your data frame.
+ # I use indexing when I first bring in a df - sometimes its easier to index a column than to type some bizarre column name.
+ # If the df is already in some type of workflow where the columns could change I avoid indexing.  But by then I've
+ # changed the column name to something reasonable anyway
+
+
+
+
 
 # dogbert has the most useful data so lets write it to a csv
 

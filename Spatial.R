@@ -5,17 +5,10 @@
 
 
 source("Setup.R")
-library(tigris)
+library(tigris) # Lots of layers available here
 options(tigris_use_cache = TRUE)
 
 # Read the file in and explicitly set the crs ------
-# Geology <- st_read(paste0(source_path, "/OK_Geology/OK_geol_poly.shp"))
-# Geology <- st_transform(Geology, crs = 32614)
-
-
-# These come out of tigris 
-# roads <- roads("OK", "Marshall")
-# roads <- st_transform(roads, crs = 32614)
 
 state <- tigris::states() |> filter(STUSPS == "OK" | STUSPS == "TX")
 state <- sf::st_transform(state, crs = 32614)
