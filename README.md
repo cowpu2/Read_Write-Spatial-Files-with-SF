@@ -1,7 +1,7 @@
 # Reading & Writing Spatial Files in R
 Mike Proctor
 
-- [Some setup first –](#some-setup-first-)
+- [Some setup first](#some-setup-first)
 - [Load some TIGER Census data with the tigris
   package](#load-some-tiger-census-data-with-the-tigris-package)
 - [Write a single layer to a
@@ -35,7 +35,7 @@ Mike Proctor
       etc](#write-a-file-with-a-time-stamp-in-filename---this-works-with-any-filename---csv-xlsx-etc)
   - [Read a shape file - the one we just wrote
     out](#read-a-shape-file---the-one-we-just-wrote-out)
-- [Clean out environment and reset](#clean-out-environment-and-reset)
+  - [Clean out environment and reset](#clean-out-environment-and-reset)
 - [Comma Separated Values - CSV](#comma-separated-values---csv)
   - [Write to csv](#write-to-csv)
     - [Find the centroid for each county and plot
@@ -52,18 +52,31 @@ Mike Proctor
   object](#read-from-a-csv-and-convert-to-an-sf-object)
   - [Convert data frame with coordinate columns to sf
     object](#convert-data-frame-with-coordinate-columns-to-sf-object)
-    - [Something’s not quite right about
-      that!](#somethings-not-quite-right-about-that)
+    - [That’s not what we were after!](#thats-not-what-we-were-after)
 
-## Some setup first –
+## Some setup first
 
-*I used the “sf::” prefix on all of the sf functions just to make things
-a little clearer when I’m working with spatial data.*
+*I used the “sf::” prefix on all of the functions from the sf package
+just to make things a little clearer when I’m doing something
+“spatial”.*
 
 ``` r
-suppressPackageStartupMessages(library(tidyverse))
+# Check if packages are installed
+
+Package_list <- c( "tidyverse", "rprojroot", "tigris", "sf")
+
+for (package in Package_list) {
+  if (!require(package, character.only = TRUE)) {
+    install.packages(package, dependencies = TRUE)
+  }
+  
+  #library(package, character.only = TRUE)
+}
+
+rm(list = c("package", "Package_list"))
+
+suppressPackageStartupMessages(library(tidyverse)) # Reload some libraries to cut down on verbosity
 suppressMessages(library(rprojroot))
-library(sf)
 suppressMessages(library(tigris)) # Lots of layers available here
 options(tigris_use_cache = TRUE)
 
@@ -101,12 +114,23 @@ TX_OK_Counties <- tigris::counties() |> filter(STATEFP == "40" | STATEFP == "48"
 TX_OK_Counties <- sf::st_transform(TX_OK_Counties, crs = 32614)
 ```
 
+Line 4  
+Explicitly setting the crs when loaded
+
 # Write a single layer to a geopackage
 
 ``` r
 sf::write_sf(marshall, paste0(spatial_path, "one_layer.gpkg"), "Marshall")
 sf::st_layers(paste0(spatial_path, "one_layer.gpkg"))
 ```
+
+Line 1  
+Write the layer to the file
+
+Line 2  
+List the layers in the file
+
+<!-- -->
 
     Driver: GPKG 
     Available layers:
@@ -117,13 +141,11 @@ sf::st_layers(paste0(spatial_path, "one_layer.gpkg"))
 
 First off we need a bunch of layers to write
 
-``` r
-rm(list = c("marshall", "state", "TX_OK_Counties"))# These are in the way at the moment so lets get rid of them.
-```
-
 ### Extract a list of the counties in the data frame
 
 ``` r
+rm(list = c("marshall", "state", "TX_OK_Counties"))# These are in the way at the moment so lets get rid of them.
+
 CountyList <- unique(OK_Counties$NAME)
 CountyList
 ```
@@ -163,14 +185,19 @@ down a bit first.
 ``` r
 ShortList <- head(CountyList, 5)
 ShortList
-```
 
-    [1] "Adair"    "Sequoyah" "Canadian" "Marshall" "Harper"  
-
-``` r
 lapply(ShortList, Create_County_df)
 ```
 
+Line 1  
+Take the first 5 rows
+
+Line 4  
+We could have done this with a loop but not in only one line.
+
+<!-- -->
+
+    [1] "Adair"    "Sequoyah" "Canadian" "Marshall" "Harper"  
     [[1]]
     Simple feature collection with 1 feature and 17 fields
     Geometry type: MULTIPOLYGON
@@ -246,8 +273,9 @@ There’s two approaches here.
 
 ``` r
 for (i in ShortList) {
-  
-  sf::write_sf(get(i), paste0(spatial_path, "OK_Counties.gpkg"), i) # i is an object in first instance but character in layer name
+  # get() gets the object not the name
+  # i is an object in first instance but character string in second(layer name)
+  sf::write_sf(get(i), paste0(spatial_path, "OK_Counties.gpkg"), i) 
   
 }
 ```
@@ -258,7 +286,7 @@ Applies a function (in this case an anonymous function) to each object
 within a vector( a list - ShortList).
 
 ``` r
-lapply(ShortList,function(z) sf::write_sf(get(z), paste0(spatial_path, "OK_Counties2.gpkg"), z)) # get() gets the object not the name
+lapply(ShortList,function(z) sf::write_sf(get(z), paste0(spatial_path, "OK_Counties2.gpkg"), z)) 
 ```
 
     [[1]]
@@ -423,12 +451,11 @@ AWATER fields - the answer is to not use a shape file.*
 
 ``` r
 timestamp <- format(Sys.time(), "%Y%m%d_%H%M")
-
 sf::st_write(Adair, paste0(spatial_path, "Adair_County_", timestamp,".shp")) #Adair_County_20250305_1126.shp
 ```
 
-    Writing layer `Adair_County_20250305_1644' to data source 
-      `G:/___R___/Spatial/spatial_output/Adair_County_20250305_1644.shp' using driver `ESRI Shapefile'
+    Writing layer `Adair_County_20250306_1526' to data source 
+      `G:/___R___/Spatial/spatial_output/Adair_County_20250306_1526.shp' using driver `ESRI Shapefile'
     Writing 1 features with 17 fields and geometry type Multi Polygon.
 
     Warning in CPL_write_ogr(obj, dsn, layer, driver,
@@ -442,8 +469,8 @@ sf::st_write(Adair, paste0(spatial_path, "Adair_County_", timestamp,".shp")) #Ad
 Adair_Shape <- sf::st_read(paste0(spatial_path, "Adair_County_", timestamp,".shp")) # I cheated here - how?
 ```
 
-    Reading layer `Adair_County_20250305_1644' from data source 
-      `G:\___R___\Spatial\spatial_output\Adair_County_20250305_1644.shp' 
+    Reading layer `Adair_County_20250306_1526' from data source 
+      `G:\___R___\Spatial\spatial_output\Adair_County_20250306_1526.shp' 
       using driver `ESRI Shapefile'
     Simple feature collection with 1 feature and 17 fields
     Geometry type: POLYGON
@@ -457,7 +484,7 @@ plot(Adair_Shape$geometry)
 
 ![](README_files/figure-commonmark/st_read-1.png)
 
-# Clean out environment and reset
+## Clean out environment and reset
 
 We’re done with all those objects in the environment pane so let’s do
 some house cleaning.  
@@ -483,35 +510,27 @@ We don’t need all the rows so let’s filter some out
 
 ``` r
   TexomaList <- c("Marshall", "Bryan", "Cooke", "Grayson")
-  TexomaCounties <- TX_OK_Counties |> filter(NAME %in% TexomaList) # %in% is an "infix" symbol
+  TexomaCounties <- TX_OK_Counties |> filter(NAME %in% TexomaList)
 ```
+
+Line 2  
+%in% is called an “infix” symbol
 
 ### Find the centroid for each county and plot it
 
 This will give us a set of points. Saving polygons to a csv isn’t going
 to be all that useful - it would be really difficult to parse that out
-and get it back into a GIS system. If you aren’t using the polygon data
-it will work fine.
+and get it back into a GIS system. If you aren’t going to use the
+polygon data it won’t matter.
 
 ``` r
  TexomaCentroids <- sf::st_centroid(TexomaCounties)
-
+s <- 
 plot(TexomaCounties$geometry) + 
   plot(TexomaCentroids$geometry, add = TRUE, pch = 19, col = 2)
 ```
 
 ![](README_files/figure-commonmark/centroid-1.png)
-
-    integer(0)
-
-------------------------------------------------------------------------
-
-*These counties were intended to be those that surround Lake Texoma. One
-could argue that since I included Cooke county in the southwest I should
-probably include the county to the north of it as well (Love). How would
-you go about fixing that?*
-
-------------------------------------------------------------------------
 
 ### Create columns for coordinates from geometry column
 
@@ -527,7 +546,7 @@ Otherwise they are just a csv.
 ### There’s too many columns - let’s get rid of some
 
 *I use the names of characters from the Dilbert comic strip when I can’t
-come up with a meaningful df name.*
+come up with a meaningful data frame name.*
 
 #### Select by column name
 
@@ -581,6 +600,12 @@ get downstream projects going that use the data, I take the time stamp
 off, so I don’t have to change the file name every time I reload it in
 downstream scripts.
 
+``` r
+timestamp <- format(Sys.time(), "%Y%m%d_%H%M")
+write_csv(dogbert, paste0(csv_path, "TexomaCountyCentroids", "_", timestamp, ".csv"))
+write_csv(dogbert, paste0(dat_path, "TexomaCountyCentroids", "_", timestamp, ".dat")) 
+```
+
 # Read from a csv and convert to an sf object
 
 I used “Import Dataset” here because the file name was so long and my
@@ -588,10 +613,10 @@ typing is so bad.
 
 ``` r
 CountyCentroids <- read_csv(paste0(csv_path, "TexomaCountyCentroids_20250303_1434.csv"), 
-                                                col_types = cols(INTPTLAT = col_number(), 
-                                                                 INTPTLON = col_number(), 
-                                                                 northing = col_number(), # these cols need to be numeric
-                                                                 easting = col_number()))
+                         col_types = cols(INTPTLAT = col_number(), 
+                                          INTPTLON = col_number(), 
+                                          northing = col_number(), # these cols need to be numeric
+                                          easting = col_number()))
 ```
 
 ## Convert data frame with coordinate columns to sf object
@@ -599,23 +624,57 @@ CountyCentroids <- read_csv(paste0(csv_path, "TexomaCountyCentroids_20250303_143
 ``` r
 fred <- CountyCentroids |> sf::st_as_sf(coords=c("northing","easting"), crs=32614)
 
-plot(fred$geometry) # that don't look right!
+plot_name<- 
+  ggplot() +
+  geom_sf(data = TexomaCounties, aes(fill = NAME)) +
+  geom_sf(data = fred, color = "green") +
+  theme(legend.position = "none") +
+  ggtitle(paste0("Hmmm... something's not quite right!")) 
+
+print(plot_name)
 ```
 
 ![](README_files/figure-commonmark/convert_sf1-1.png)
 
-### Something’s not quite right about that!
+### That’s not what we were after!
 
 Make sure you get x and y coords in right order
 
 ``` r
 fred <- CountyCentroids |> 
-  sf::st_as_sf(coords=c("easting","northing"), crs=32614) # x and y coords in right order
+  sf::st_as_sf(coords=c("easting","northing"), crs=32614)
 
-plot(TexomaCounties$geometry, col = 3) +
-plot(fred$geometry, col = 2, pch = 19, add = TRUE)
+plot_name<- 
+  ggplot() +
+  geom_sf(data = TexomaCounties, aes(fill = NAME)) +
+  geom_sf(data = fred, color = "green") +
+  theme(legend.position = "none") +
+  ggtitle(paste0("That makes a little more sense.")) 
+
+print(plot_name)
 ```
+
+Line 2  
+Switched position of “easting” and “northing”
 
 ![](README_files/figure-commonmark/convert_sf2-1.png)
 
-    integer(0)
+------------------------------------------------------------------------
+
+Additional challenges:
+
+These counties were intended to be those that surround Lake Texoma. One
+could argue that since I included Cooke county in the southwest I should
+probably include the county to the north of it as well (Love). How would
+you go about fixing that?
+
+There are a couple of columns in dogbert that look like lat/long
+coordinates - I wonder if they are centroids that were already in the
+TIGER data? How would you go about sorting that out?
+
+There’s two more columns that look like they contain area values for
+land and water. I don’t know what the units are but I suspect they might
+be square meters. How would you go about creating columns that converted
+those values to acres and square miles?
+
+------------------------------------------------------------------------

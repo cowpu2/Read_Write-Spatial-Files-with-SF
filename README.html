@@ -1,0 +1,1236 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.5.57">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Mike Proctor">
+
+<title>Reading &amp; Writing Spatial Files in R</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { display: inline-block; text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="README_files/libs/clipboard/clipboard.min.js"></script>
+<script src="README_files/libs/quarto-html/quarto.js"></script>
+<script src="README_files/libs/quarto-html/popper.min.js"></script>
+<script src="README_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="README_files/libs/quarto-html/anchor.min.js"></script>
+<link href="README_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="README_files/libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="README_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="README_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="README_files/libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+
+
+</head>
+
+<body>
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
+<div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+  <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#some-setup-first" id="toc-some-setup-first" class="nav-link active" data-scroll-target="#some-setup-first">Some setup first</a></li>
+  <li><a href="#load-some-tiger-census-data-with-the-tigris-package" id="toc-load-some-tiger-census-data-with-the-tigris-package" class="nav-link" data-scroll-target="#load-some-tiger-census-data-with-the-tigris-package">Load some TIGER Census data with the tigris package</a></li>
+  <li><a href="#write-a-single-layer-to-a-geopackage" id="toc-write-a-single-layer-to-a-geopackage" class="nav-link" data-scroll-target="#write-a-single-layer-to-a-geopackage">Write a single layer to a geopackage</a></li>
+  <li><a href="#writing-multiple-layers-to-a-geopackage" id="toc-writing-multiple-layers-to-a-geopackage" class="nav-link" data-scroll-target="#writing-multiple-layers-to-a-geopackage">Writing multiple layers to a geopackage</a>
+  <ul class="collapse">
+  <li><a href="#extract-a-list-of-the-counties-in-the-data-frame" id="toc-extract-a-list-of-the-counties-in-the-data-frame" class="nav-link" data-scroll-target="#extract-a-list-of-the-counties-in-the-data-frame">Extract a list of the counties in the data frame</a></li>
+  <li><a href="#write-a-function-to-pull-each-row-out-as-a-layer-into-the-environment-and-name-it-according-to-the-value-in-the-name-column" id="toc-write-a-function-to-pull-each-row-out-as-a-layer-into-the-environment-and-name-it-according-to-the-value-in-the-name-column" class="nav-link" data-scroll-target="#write-a-function-to-pull-each-row-out-as-a-layer-into-the-environment-and-name-it-according-to-the-value-in-the-name-column">Write a function to pull each row out as a layer into the environment and name it according to the value in the NAME column</a></li>
+  <li><a href="#apply-the-function-to-the-list-of-county-names" id="toc-apply-the-function-to-the-list-of-county-names" class="nav-link" data-scroll-target="#apply-the-function-to-the-list-of-county-names">Apply the function to the list of county names</a></li>
+  <li><a href="#write-multiple-data-frames-to-a-geopackage" id="toc-write-multiple-data-frames-to-a-geopackage" class="nav-link" data-scroll-target="#write-multiple-data-frames-to-a-geopackage">Write multiple data frames to a geopackage</a>
+  <ul class="collapse">
+  <li><a href="#loop-over-a-list-of-sf-data-frames" id="toc-loop-over-a-list-of-sf-data-frames" class="nav-link" data-scroll-target="#loop-over-a-list-of-sf-data-frames">Loop over a list of sf data frames</a></li>
+  <li><a href="#use-lapply-over-a-vector-of-names" id="toc-use-lapply-over-a-vector-of-names" class="nav-link" data-scroll-target="#use-lapply-over-a-vector-of-names">Use lapply over a vector of names</a></li>
+  </ul></li>
+  </ul></li>
+  <li><a href="#remove-layers-from-geopackage" id="toc-remove-layers-from-geopackage" class="nav-link" data-scroll-target="#remove-layers-from-geopackage">Remove layers from geopackage</a>
+  <ul class="collapse">
+  <li><a href="#list-the-layers-in-the-geopackages-we-just-wrote" id="toc-list-the-layers-in-the-geopackages-we-just-wrote" class="nav-link" data-scroll-target="#list-the-layers-in-the-geopackages-we-just-wrote">List the layers in the geopackages we just wrote</a></li>
+  <li><a href="#delete-one-layer---should-get-4-rows" id="toc-delete-one-layer---should-get-4-rows" class="nav-link" data-scroll-target="#delete-one-layer---should-get-4-rows">Delete one layer - should get 4 rows</a></li>
+  <li><a href="#delete-a-list-of-layers---deleting-2-layers" id="toc-delete-a-list-of-layers---deleting-2-layers" class="nav-link" data-scroll-target="#delete-a-list-of-layers---deleting-2-layers">Delete a list of layers - deleting 2 layers</a></li>
+  </ul></li>
+  <li><a href="#shapefiles" id="toc-shapefiles" class="nav-link" data-scroll-target="#shapefiles">Shapefiles</a>
+  <ul class="collapse">
+  <li><a href="#write-out-a-shape-file" id="toc-write-out-a-shape-file" class="nav-link" data-scroll-target="#write-out-a-shape-file">Write out a shape file</a>
+  <ul class="collapse">
+  <li><a href="#write-a-file-with-a-time-stamp-in-filename---this-works-with-any-filename---csv-xlsx-etc" id="toc-write-a-file-with-a-time-stamp-in-filename---this-works-with-any-filename---csv-xlsx-etc" class="nav-link" data-scroll-target="#write-a-file-with-a-time-stamp-in-filename---this-works-with-any-filename---csv-xlsx-etc">Write a file with a time stamp in filename - This works with any filename - csv, xlsx etc</a></li>
+  </ul></li>
+  <li><a href="#read-a-shape-file---the-one-we-just-wrote-out" id="toc-read-a-shape-file---the-one-we-just-wrote-out" class="nav-link" data-scroll-target="#read-a-shape-file---the-one-we-just-wrote-out">Read a shape file - the one we just wrote out</a></li>
+  <li><a href="#clean-out-environment-and-reset" id="toc-clean-out-environment-and-reset" class="nav-link" data-scroll-target="#clean-out-environment-and-reset">Clean out environment and reset</a></li>
+  </ul></li>
+  <li><a href="#comma-separated-values---csv" id="toc-comma-separated-values---csv" class="nav-link" data-scroll-target="#comma-separated-values---csv">Comma Separated Values - CSV</a>
+  <ul class="collapse">
+  <li><a href="#write-to-csv" id="toc-write-to-csv" class="nav-link" data-scroll-target="#write-to-csv">Write to csv</a>
+  <ul class="collapse">
+  <li><a href="#find-the-centroid-for-each-county-and-plot-it" id="toc-find-the-centroid-for-each-county-and-plot-it" class="nav-link" data-scroll-target="#find-the-centroid-for-each-county-and-plot-it">Find the centroid for each county and plot it</a></li>
+  <li><a href="#create-columns-for-coordinates-from-geometry-column" id="toc-create-columns-for-coordinates-from-geometry-column" class="nav-link" data-scroll-target="#create-columns-for-coordinates-from-geometry-column">Create columns for coordinates from geometry column</a></li>
+  <li><a href="#write-out-the-file" id="toc-write-out-the-file" class="nav-link" data-scroll-target="#write-out-the-file">Write out the file</a></li>
+  <li><a href="#theres-too-many-columns---lets-get-rid-of-some" id="toc-theres-too-many-columns---lets-get-rid-of-some" class="nav-link" data-scroll-target="#theres-too-many-columns---lets-get-rid-of-some">There’s too many columns - let’s get rid of some</a></li>
+  <li><a href="#the-dogbert-data-frame-has-the-most-useful-data-so-lets-write-it-to-a-csv." id="toc-the-dogbert-data-frame-has-the-most-useful-data-so-lets-write-it-to-a-csv." class="nav-link" data-scroll-target="#the-dogbert-data-frame-has-the-most-useful-data-so-lets-write-it-to-a-csv.">The dogbert data frame has the most useful data so lets write it to a csv.</a></li>
+  </ul></li>
+  </ul></li>
+  <li><a href="#read-from-a-csv-and-convert-to-an-sf-object" id="toc-read-from-a-csv-and-convert-to-an-sf-object" class="nav-link" data-scroll-target="#read-from-a-csv-and-convert-to-an-sf-object">Read from a csv and convert to an sf object</a>
+  <ul class="collapse">
+  <li><a href="#convert-data-frame-with-coordinate-columns-to-sf-object" id="toc-convert-data-frame-with-coordinate-columns-to-sf-object" class="nav-link" data-scroll-target="#convert-data-frame-with-coordinate-columns-to-sf-object">Convert data frame with coordinate columns to sf object</a>
+  <ul class="collapse">
+  <li><a href="#thats-not-what-we-were-after" id="toc-thats-not-what-we-were-after" class="nav-link" data-scroll-target="#thats-not-what-we-were-after">That’s not what we were after!</a></li>
+  </ul></li>
+  </ul></li>
+  </ul>
+<div class="quarto-alternate-formats"><h2>Other Formats</h2><ul><li><a href="README.md"><i class="bi bi-file-code"></i>Github (GFM)</a></li></ul></div></nav>
+</div>
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Reading &amp; Writing Spatial Files in R</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>Mike Proctor </p>
+          </div>
+  </div>
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="some-setup-first" class="level2">
+<h2 class="anchored" data-anchor-id="some-setup-first">Some setup first</h2>
+<p><em>I used the “sf::” prefix on all of the functions from the sf package just to make things a little clearer when I’m doing something “spatial”.</em></p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Check if packages are installed</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>Package_list <span class="ot">&lt;-</span> <span class="fu">c</span>( <span class="st">"tidyverse"</span>, <span class="st">"rprojroot"</span>, <span class="st">"tigris"</span>, <span class="st">"sf"</span>)</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (package <span class="cf">in</span> Package_list) {</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="sc">!</span><span class="fu">require</span>(package, <span class="at">character.only =</span> <span class="cn">TRUE</span>)) {</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>    <span class="fu">install.packages</span>(package, <span class="at">dependencies =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>  <span class="co">#library(package, character.only = TRUE)</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a><span class="fu">rm</span>(<span class="at">list =</span> <span class="fu">c</span>(<span class="st">"package"</span>, <span class="st">"Package_list"</span>))</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a><span class="fu">suppressPackageStartupMessages</span>(<span class="fu">library</span>(tidyverse)) <span class="co"># Reload some libraries to cut down on verbosity</span></span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a><span class="fu">suppressMessages</span>(<span class="fu">library</span>(rprojroot))</span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a><span class="fu">suppressMessages</span>(<span class="fu">library</span>(tigris)) <span class="co"># Lots of layers available here</span></span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a><span class="fu">options</span>(<span class="at">tigris_use_cache =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a><span class="do">## for rprojroot - pointers to folders in project</span></span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>base_path           <span class="ot">&lt;-</span> <span class="fu">find_rstudio_root_file</span>()                     </span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>source_path         <span class="ot">&lt;-</span> <span class="fu">file.path</span>(base_path, <span class="st">"source_data//"</span>)</span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>csv_path            <span class="ot">&lt;-</span> <span class="fu">file.path</span>(base_path, <span class="st">"csv_output//"</span>) </span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a>dat_path            <span class="ot">&lt;-</span> <span class="fu">file.path</span>(base_path, <span class="st">"dat_output//"</span>)</span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a><span class="co">#plot_path          &lt;- file.path(base_path, "plots//")                 </span></span>
+<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a>spatial_path        <span class="ot">&lt;-</span> <span class="fu">file.path</span>(base_path, <span class="st">"spatial_output//"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="load-some-tiger-census-data-with-the-tigris-package" class="level2">
+<h2 class="anchored" data-anchor-id="load-some-tiger-census-data-with-the-tigris-package">Load some TIGER Census data with the tigris package</h2>
+<p><a href="https://www.rdocumentation.org/packages/tigris/versions/2.1" class="uri">https://www.rdocumentation.org/packages/tigris/versions/2.1</a></p>
+<p><a href="https://github.com/walkerke/tigris/tree/master" class="uri">https://github.com/walkerke/tigris/tree/master</a></p>
+<p><em>Explicitly setting the crs when you load the file will save you much frustration later on.</em></p>
+<div class="cell">
+<div class="sourceCode cell-code" id="annotated-cell-2"><pre class="sourceCode r code-annotation-code code-with-copy code-annotated"><code class="sourceCode r"><span id="annotated-cell-2-1"><a href="#annotated-cell-2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Read the data in and explicitly set the crs ------</span></span>
+<span id="annotated-cell-2-2"><a href="#annotated-cell-2-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="annotated-cell-2-3"><a href="#annotated-cell-2-3" aria-hidden="true" tabindex="-1"></a>state <span class="ot">&lt;-</span> tigris<span class="sc">::</span><span class="fu">states</span>() <span class="sc">|&gt;</span> <span class="fu">filter</span>(STUSPS <span class="sc">==</span> <span class="st">"OK"</span> <span class="sc">|</span> STUSPS <span class="sc">==</span> <span class="st">"TX"</span>)</span>
+<button class="code-annotation-anchor" data-target-cell="annotated-cell-2" data-target-annotation="1">1</button><span id="annotated-cell-2-4" class="code-annotation-target"><a href="#annotated-cell-2-4" aria-hidden="true" tabindex="-1"></a>state <span class="ot">&lt;-</span> sf<span class="sc">::</span><span class="fu">st_transform</span>(state, <span class="at">crs =</span> <span class="dv">32614</span>)</span>
+<span id="annotated-cell-2-5"><a href="#annotated-cell-2-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="annotated-cell-2-6"><a href="#annotated-cell-2-6" aria-hidden="true" tabindex="-1"></a>marshall <span class="ot">&lt;-</span> tigris<span class="sc">::</span><span class="fu">counties</span>(<span class="st">"OK"</span>) <span class="sc">|&gt;</span> <span class="fu">filter</span>(NAME <span class="sc">==</span> <span class="st">"Marshall"</span>)</span>
+<span id="annotated-cell-2-7"><a href="#annotated-cell-2-7" aria-hidden="true" tabindex="-1"></a>marshall <span class="ot">&lt;-</span> sf<span class="sc">::</span><span class="fu">st_transform</span>(marshall, <span class="at">crs =</span> <span class="dv">32614</span>)</span>
+<span id="annotated-cell-2-8"><a href="#annotated-cell-2-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="annotated-cell-2-9"><a href="#annotated-cell-2-9" aria-hidden="true" tabindex="-1"></a>OK_Counties <span class="ot">&lt;-</span> tigris<span class="sc">::</span><span class="fu">counties</span>() <span class="sc">|&gt;</span> <span class="fu">filter</span>(STATEFP <span class="sc">==</span> <span class="st">"40"</span>)</span>
+<span id="annotated-cell-2-10"><a href="#annotated-cell-2-10" aria-hidden="true" tabindex="-1"></a>OK_Counties <span class="ot">&lt;-</span> sf<span class="sc">::</span><span class="fu">st_transform</span>(OK_Counties, <span class="at">crs =</span> <span class="dv">32614</span>)</span>
+<span id="annotated-cell-2-11"><a href="#annotated-cell-2-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="annotated-cell-2-12"><a href="#annotated-cell-2-12" aria-hidden="true" tabindex="-1"></a>TX_OK_Counties <span class="ot">&lt;-</span> tigris<span class="sc">::</span><span class="fu">counties</span>() <span class="sc">|&gt;</span> <span class="fu">filter</span>(STATEFP <span class="sc">==</span> <span class="st">"40"</span> <span class="sc">|</span> STATEFP <span class="sc">==</span> <span class="st">"48"</span>)</span>
+<span id="annotated-cell-2-13"><a href="#annotated-cell-2-13" aria-hidden="true" tabindex="-1"></a>TX_OK_Counties <span class="ot">&lt;-</span> sf<span class="sc">::</span><span class="fu">st_transform</span>(TX_OK_Counties, <span class="at">crs =</span> <span class="dv">32614</span>)</span><div class="code-annotation-gutter-bg"></div><div class="code-annotation-gutter"></div></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-annotation">
+<dl class="code-annotation-container-hidden code-annotation-container-grid">
+<dt data-target-cell="annotated-cell-2" data-target-annotation="1">1</dt>
+<dd>
+<span data-code-cell="annotated-cell-2" data-code-lines="4" data-code-annotation="1">Explicitly setting the crs when loaded</span>
+</dd>
+</dl>
+</div>
+</div>
+</section>
+<section id="write-a-single-layer-to-a-geopackage" class="level1">
+<h1>Write a single layer to a geopackage</h1>
+<div class="cell">
+<div class="sourceCode cell-code" id="annotated-cell-3"><pre class="sourceCode r code-annotation-code code-with-copy code-annotated"><code class="sourceCode r"><button class="code-annotation-anchor" data-target-cell="annotated-cell-3" data-target-annotation="1">1</button><span id="annotated-cell-3-1" class="code-annotation-target"><a href="#annotated-cell-3-1" aria-hidden="true" tabindex="-1"></a>sf<span class="sc">::</span><span class="fu">write_sf</span>(marshall, <span class="fu">paste0</span>(spatial_path, <span class="st">"one_layer.gpkg"</span>), <span class="st">"Marshall"</span>)</span>
+<button class="code-annotation-anchor" data-target-cell="annotated-cell-3" data-target-annotation="2">2</button><span id="annotated-cell-3-2" class="code-annotation-target"><a href="#annotated-cell-3-2" aria-hidden="true" tabindex="-1"></a>sf<span class="sc">::</span><span class="fu">st_layers</span>(<span class="fu">paste0</span>(spatial_path, <span class="st">"one_layer.gpkg"</span>))</span><div class="code-annotation-gutter-bg"></div><div class="code-annotation-gutter"></div></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-annotation">
+<dl class="code-annotation-container-hidden code-annotation-container-grid">
+<dt data-target-cell="annotated-cell-3" data-target-annotation="1">1</dt>
+<dd>
+<span data-code-cell="annotated-cell-3" data-code-lines="1" data-code-annotation="1">Write the layer to the file</span>
+</dd>
+<dt data-target-cell="annotated-cell-3" data-target-annotation="2">2</dt>
+<dd>
+<span data-code-cell="annotated-cell-3" data-code-lines="2" data-code-annotation="2">List the layers in the file</span>
+</dd>
+</dl>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Driver: GPKG 
+Available layers:
+  layer_name geometry_type features fields              crs_name
+1   Marshall Multi Polygon        1     17 WGS 84 / UTM zone 14N</code></pre>
+</div>
+</div>
+</section>
+<section id="writing-multiple-layers-to-a-geopackage" class="level1">
+<h1>Writing multiple layers to a geopackage</h1>
+<p>First off we need a bunch of layers to write</p>
+<section id="extract-a-list-of-the-counties-in-the-data-frame" class="level3">
+<h3 class="anchored" data-anchor-id="extract-a-list-of-the-counties-in-the-data-frame">Extract a list of the counties in the data frame</h3>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">rm</span>(<span class="at">list =</span> <span class="fu">c</span>(<span class="st">"marshall"</span>, <span class="st">"state"</span>, <span class="st">"TX_OK_Counties"</span>))<span class="co"># These are in the way at the moment so lets get rid of them.</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>CountyList <span class="ot">&lt;-</span> <span class="fu">unique</span>(OK_Counties<span class="sc">$</span>NAME)</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>CountyList</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code> [1] "Adair"        "Sequoyah"     "Canadian"     "Marshall"     "Harper"      
+ [6] "Alfalfa"      "Lincoln"      "Hughes"       "Muskogee"     "Ottawa"      
+[11] "Rogers"       "Caddo"        "Mayes"        "Coal"         "Carter"      
+[16] "Greer"        "Cotton"       "McCurtain"    "Atoka"        "Okmulgee"    
+[21] "Washington"   "Seminole"     "Woods"        "Harmon"       "Kay"         
+[26] "Blaine"       "Pontotoc"     "Creek"        "Pottawatomie" "Kiowa"       
+[31] "Love"         "Noble"        "Washita"      "Jackson"      "Major"       
+[36] "Delaware"     "Custer"       "Ellis"        "Oklahoma"     "Johnston"    
+[41] "Comanche"     "Pushmataha"   "Cleveland"    "Wagoner"      "Beckham"     
+[46] "Garvin"       "Craig"        "Cherokee"     "Osage"        "Tillman"     
+[51] "Logan"        "Pittsburg"    "Jefferson"    "Pawnee"       "Okfuskee"    
+[56] "McClain"      "Le Flore"     "Beaver"       "Dewey"        "Choctaw"     
+[61] "Roger Mills"  "Bryan"        "Latimer"      "Texas"        "Woodward"    
+[66] "Stephens"     "Tulsa"        "McIntosh"     "Kingfisher"   "Grant"       
+[71] "Murray"       "Nowata"       "Haskell"      "Grady"        "Payne"       
+[76] "Cimarron"     "Garfield"    </code></pre>
+</div>
+</div>
+</section>
+<section id="write-a-function-to-pull-each-row-out-as-a-layer-into-the-environment-and-name-it-according-to-the-value-in-the-name-column" class="level3">
+<h3 class="anchored" data-anchor-id="write-a-function-to-pull-each-row-out-as-a-layer-into-the-environment-and-name-it-according-to-the-value-in-the-name-column">Write a function to pull each row out as a layer into the environment and name it according to the value in the NAME column</h3>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a> Create_County_df <span class="ot">&lt;-</span> <span class="cf">function</span>(x) { </span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  df <span class="ot">&lt;-</span> OK_Counties <span class="sc">|&gt;</span> <span class="fu">filter</span>(NAME <span class="sc">==</span> x) <span class="sc">|&gt;</span> <span class="fu">distinct</span>(NAME, <span class="at">.keep_all =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  df_name <span class="ot">&lt;-</span> <span class="fu">paste0</span>(x)</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">assign</span>(df_name, df, <span class="at">envir =</span> .GlobalEnv)</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="apply-the-function-to-the-list-of-county-names" class="level3">
+<h3 class="anchored" data-anchor-id="apply-the-function-to-the-list-of-county-names">Apply the function to the list of county names</h3>
+<p>We only need a few data frames to demonstrate so lets filter the list down a bit first.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="annotated-cell-6"><pre class="sourceCode r code-annotation-code code-with-copy code-annotated"><code class="sourceCode r"><button class="code-annotation-anchor" data-target-cell="annotated-cell-6" data-target-annotation="1">1</button><span id="annotated-cell-6-1" class="code-annotation-target"><a href="#annotated-cell-6-1" aria-hidden="true" tabindex="-1"></a>ShortList <span class="ot">&lt;-</span> <span class="fu">head</span>(CountyList, <span class="dv">5</span>)</span>
+<span id="annotated-cell-6-2"><a href="#annotated-cell-6-2" aria-hidden="true" tabindex="-1"></a>ShortList</span>
+<span id="annotated-cell-6-3"><a href="#annotated-cell-6-3" aria-hidden="true" tabindex="-1"></a></span>
+<button class="code-annotation-anchor" data-target-cell="annotated-cell-6" data-target-annotation="2">2</button><span id="annotated-cell-6-4" class="code-annotation-target"><a href="#annotated-cell-6-4" aria-hidden="true" tabindex="-1"></a><span class="fu">lapply</span>(ShortList, Create_County_df)</span><div class="code-annotation-gutter-bg"></div><div class="code-annotation-gutter"></div></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-annotation">
+<dl class="code-annotation-container-hidden code-annotation-container-grid">
+<dt data-target-cell="annotated-cell-6" data-target-annotation="1">1</dt>
+<dd>
+<span data-code-cell="annotated-cell-6" data-code-lines="1" data-code-annotation="1">Take the first 5 rows</span>
+</dd>
+<dt data-target-cell="annotated-cell-6" data-target-annotation="2">2</dt>
+<dd>
+<span data-code-cell="annotated-cell-6" data-code-lines="4" data-code-annotation="2">We could have done this with a loop but not in only one line.</span>
+</dd>
+</dl>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] "Adair"    "Sequoyah" "Canadian" "Marshall" "Harper"  
+[[1]]
+Simple feature collection with 1 feature and 17 fields
+Geometry type: MULTIPOLYGON
+Dimension:     XY
+Bounding box:  xmin: 878098.7 ymin: 3951961 xmax: 910033.5 ymax: 4011037
+Projected CRS: WGS 84 / UTM zone 14N
+  STATEFP COUNTYFP COUNTYNS GEOID  NAME     NAMELSAD LSAD CLASSFP MTFCC CSAFP
+1      40      001 01101788 40001 Adair Adair County   06      H1 G4020  &lt;NA&gt;
+  CBSAFP METDIVFP FUNCSTAT      ALAND  AWATER    INTPTLAT     INTPTLON
+1   &lt;NA&gt;     &lt;NA&gt;        A 1486345553 8864932 +35.8980428 -094.6510258
+                        geometry
+1 MULTIPOLYGON (((879562.1 39...
+
+[[2]]
+Simple feature collection with 1 feature and 17 fields
+Geometry type: MULTIPOLYGON
+Dimension:     XY
+Bounding box:  xmin: 850636 ymin: 3914018 xmax: 915069.2 ymax: 3953311
+Projected CRS: WGS 84 / UTM zone 14N
+  STATEFP COUNTYFP COUNTYNS GEOID     NAME        NAMELSAD LSAD CLASSFP MTFCC
+1      40      135 01101855 40135 Sequoyah Sequoyah County   06      H1 G4020
+  CSAFP CBSAFP METDIVFP FUNCSTAT      ALAND    AWATER    INTPTLAT     INTPTLON
+1  &lt;NA&gt;   &lt;NA&gt;     &lt;NA&gt;        A 1744553528 105073391 +35.5024345 -094.7507569
+                        geometry
+1 MULTIPOLYGON (((910187.8 39...
+
+[[3]]
+Simple feature collection with 1 feature and 17 fields
+Geometry type: MULTIPOLYGON
+Dimension:     XY
+Bounding box:  xmin: 562118.4 ymin: 3909679 xmax: 620741.7 ymax: 3954366
+Projected CRS: WGS 84 / UTM zone 14N
+  STATEFP COUNTYFP COUNTYNS GEOID     NAME        NAMELSAD LSAD CLASSFP MTFCC
+1      40      017 01101796 40017 Canadian Canadian County   06      H1 G4020
+  CSAFP CBSAFP METDIVFP FUNCSTAT      ALAND   AWATER    INTPTLAT     INTPTLON
+1  &lt;NA&gt;   &lt;NA&gt;     &lt;NA&gt;        A 2322112748 23146754 +35.5433544 -097.9798891
+                        geometry
+1 MULTIPOLYGON (((562193 3938...
+
+[[4]]
+Simple feature collection with 1 feature and 17 fields
+Geometry type: MULTIPOLYGON
+Dimension:     XY
+Bounding box:  xmin: 687240.8 ymin: 3744940 xmax: 726341.4 ymax: 3783739
+Projected CRS: WGS 84 / UTM zone 14N
+  STATEFP COUNTYFP COUNTYNS GEOID     NAME        NAMELSAD LSAD CLASSFP MTFCC
+1      40      095 01101832 40095 Marshall Marshall County   06      H1 G4020
+  CSAFP CBSAFP METDIVFP FUNCSTAT     ALAND    AWATER    INTPTLAT     INTPTLON
+1  &lt;NA&gt;   &lt;NA&gt;     &lt;NA&gt;        A 962153980 143719930 +34.0270069 -096.7705327
+                        geometry
+1 MULTIPOLYGON (((687379.8 37...
+
+[[5]]
+Simple feature collection with 1 feature and 17 fields
+Geometry type: MULTIPOLYGON
+Dimension:     XY
+Bounding box:  xmin: 410268.2 ymin: 4049867 xmax: 473687.1 ymax: 4095531
+Projected CRS: WGS 84 / UTM zone 14N
+  STATEFP COUNTYFP COUNTYNS GEOID   NAME      NAMELSAD LSAD CLASSFP MTFCC CSAFP
+1      40      059 01101817 40059 Harper Harper County   06      H1 G4020  &lt;NA&gt;
+  CBSAFP METDIVFP FUNCSTAT      ALAND  AWATER    INTPTLAT     INTPTLON
+1   &lt;NA&gt;     &lt;NA&gt;        A 2689919591 5259447 +36.8003504 -099.6628052
+                        geometry
+1 MULTIPOLYGON (((446982 4049...</code></pre>
+</div>
+</div>
+<p>Now we have a bunch of layers to write</p>
+</section>
+<section id="write-multiple-data-frames-to-a-geopackage" class="level2">
+<h2 class="anchored" data-anchor-id="write-multiple-data-frames-to-a-geopackage">Write multiple data frames to a geopackage</h2>
+<p>There’s two approaches here.</p>
+<section id="loop-over-a-list-of-sf-data-frames" class="level3">
+<h3 class="anchored" data-anchor-id="loop-over-a-list-of-sf-data-frames">Loop over a list of sf data frames</h3>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (i <span class="cf">in</span> ShortList) {</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>  <span class="co"># get() gets the object not the name</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>  <span class="co"># i is an object in first instance but character string in second(layer name)</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>  sf<span class="sc">::</span><span class="fu">write_sf</span>(<span class="fu">get</span>(i), <span class="fu">paste0</span>(spatial_path, <span class="st">"OK_Counties.gpkg"</span>), i) </span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="use-lapply-over-a-vector-of-names" class="level3">
+<h3 class="anchored" data-anchor-id="use-lapply-over-a-vector-of-names">Use lapply over a vector of names</h3>
+<p>Applies a function (in this case an anonymous function) to each object within a vector( a list - ShortList).</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">lapply</span>(ShortList,<span class="cf">function</span>(z) sf<span class="sc">::</span><span class="fu">write_sf</span>(<span class="fu">get</span>(z), <span class="fu">paste0</span>(spatial_path, <span class="st">"OK_Counties2.gpkg"</span>), z)) </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[[1]]
+Simple feature collection with 1 feature and 17 fields
+Geometry type: MULTIPOLYGON
+Dimension:     XY
+Bounding box:  xmin: 878098.7 ymin: 3951961 xmax: 910033.5 ymax: 4011037
+Projected CRS: WGS 84 / UTM zone 14N
+  STATEFP COUNTYFP COUNTYNS GEOID  NAME     NAMELSAD LSAD CLASSFP MTFCC CSAFP
+1      40      001 01101788 40001 Adair Adair County   06      H1 G4020  &lt;NA&gt;
+  CBSAFP METDIVFP FUNCSTAT      ALAND  AWATER    INTPTLAT     INTPTLON
+1   &lt;NA&gt;     &lt;NA&gt;        A 1486345553 8864932 +35.8980428 -094.6510258
+                        geometry
+1 MULTIPOLYGON (((879562.1 39...
+
+[[2]]
+Simple feature collection with 1 feature and 17 fields
+Geometry type: MULTIPOLYGON
+Dimension:     XY
+Bounding box:  xmin: 850636 ymin: 3914018 xmax: 915069.2 ymax: 3953311
+Projected CRS: WGS 84 / UTM zone 14N
+  STATEFP COUNTYFP COUNTYNS GEOID     NAME        NAMELSAD LSAD CLASSFP MTFCC
+1      40      135 01101855 40135 Sequoyah Sequoyah County   06      H1 G4020
+  CSAFP CBSAFP METDIVFP FUNCSTAT      ALAND    AWATER    INTPTLAT     INTPTLON
+1  &lt;NA&gt;   &lt;NA&gt;     &lt;NA&gt;        A 1744553528 105073391 +35.5024345 -094.7507569
+                        geometry
+1 MULTIPOLYGON (((910187.8 39...
+
+[[3]]
+Simple feature collection with 1 feature and 17 fields
+Geometry type: MULTIPOLYGON
+Dimension:     XY
+Bounding box:  xmin: 562118.4 ymin: 3909679 xmax: 620741.7 ymax: 3954366
+Projected CRS: WGS 84 / UTM zone 14N
+  STATEFP COUNTYFP COUNTYNS GEOID     NAME        NAMELSAD LSAD CLASSFP MTFCC
+1      40      017 01101796 40017 Canadian Canadian County   06      H1 G4020
+  CSAFP CBSAFP METDIVFP FUNCSTAT      ALAND   AWATER    INTPTLAT     INTPTLON
+1  &lt;NA&gt;   &lt;NA&gt;     &lt;NA&gt;        A 2322112748 23146754 +35.5433544 -097.9798891
+                        geometry
+1 MULTIPOLYGON (((562193 3938...
+
+[[4]]
+Simple feature collection with 1 feature and 17 fields
+Geometry type: MULTIPOLYGON
+Dimension:     XY
+Bounding box:  xmin: 687240.8 ymin: 3744940 xmax: 726341.4 ymax: 3783739
+Projected CRS: WGS 84 / UTM zone 14N
+  STATEFP COUNTYFP COUNTYNS GEOID     NAME        NAMELSAD LSAD CLASSFP MTFCC
+1      40      095 01101832 40095 Marshall Marshall County   06      H1 G4020
+  CSAFP CBSAFP METDIVFP FUNCSTAT     ALAND    AWATER    INTPTLAT     INTPTLON
+1  &lt;NA&gt;   &lt;NA&gt;     &lt;NA&gt;        A 962153980 143719930 +34.0270069 -096.7705327
+                        geometry
+1 MULTIPOLYGON (((687379.8 37...
+
+[[5]]
+Simple feature collection with 1 feature and 17 fields
+Geometry type: MULTIPOLYGON
+Dimension:     XY
+Bounding box:  xmin: 410268.2 ymin: 4049867 xmax: 473687.1 ymax: 4095531
+Projected CRS: WGS 84 / UTM zone 14N
+  STATEFP COUNTYFP COUNTYNS GEOID   NAME      NAMELSAD LSAD CLASSFP MTFCC CSAFP
+1      40      059 01101817 40059 Harper Harper County   06      H1 G4020  &lt;NA&gt;
+  CBSAFP METDIVFP FUNCSTAT      ALAND  AWATER    INTPTLAT     INTPTLON
+1   &lt;NA&gt;     &lt;NA&gt;        A 2689919591 5259447 +36.8003504 -099.6628052
+                        geometry
+1 MULTIPOLYGON (((446982 4049...</code></pre>
+</div>
+</div>
+</section>
+</section>
+</section>
+<section id="remove-layers-from-geopackage" class="level1">
+<h1>Remove layers from geopackage</h1>
+<section id="list-the-layers-in-the-geopackages-we-just-wrote" class="level3">
+<h3 class="anchored" data-anchor-id="list-the-layers-in-the-geopackages-we-just-wrote">List the layers in the geopackages we just wrote</h3>
+<p>There should be 5 layers in each file</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>sf<span class="sc">::</span><span class="fu">st_layers</span>(<span class="fu">paste0</span>(spatial_path, <span class="st">"OK_Counties.gpkg"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Driver: GPKG 
+Available layers:
+  layer_name geometry_type features fields              crs_name
+1      Adair Multi Polygon        1     17 WGS 84 / UTM zone 14N
+2   Sequoyah Multi Polygon        1     17 WGS 84 / UTM zone 14N
+3   Canadian Multi Polygon        1     17 WGS 84 / UTM zone 14N
+4   Marshall Multi Polygon        1     17 WGS 84 / UTM zone 14N
+5     Harper Multi Polygon        1     17 WGS 84 / UTM zone 14N</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>sf<span class="sc">::</span><span class="fu">st_layers</span>(<span class="fu">paste0</span>(spatial_path, <span class="st">"OK_Counties2.gpkg"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Driver: GPKG 
+Available layers:
+  layer_name geometry_type features fields              crs_name
+1      Adair Multi Polygon        1     17 WGS 84 / UTM zone 14N
+2   Sequoyah Multi Polygon        1     17 WGS 84 / UTM zone 14N
+3   Canadian Multi Polygon        1     17 WGS 84 / UTM zone 14N
+4   Marshall Multi Polygon        1     17 WGS 84 / UTM zone 14N
+5     Harper Multi Polygon        1     17 WGS 84 / UTM zone 14N</code></pre>
+</div>
+</div>
+</section>
+<section id="delete-one-layer---should-get-4-rows" class="level3">
+<h3 class="anchored" data-anchor-id="delete-one-layer---should-get-4-rows">Delete one layer - should get 4 rows</h3>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>sf<span class="sc">::</span><span class="fu">st_delete</span>(<span class="fu">paste0</span>(spatial_path, <span class="st">"OK_Counties.gpkg"</span>), <span class="st">"Marshall"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Deleting layer `Marshall' using driver `GPKG'</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>sf<span class="sc">::</span><span class="fu">st_layers</span>(<span class="fu">paste0</span>(spatial_path, <span class="st">"OK_Counties.gpkg"</span>)) <span class="co"># Check to see if it worked</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Driver: GPKG 
+Available layers:
+  layer_name geometry_type features fields              crs_name
+1      Adair Multi Polygon        1     17 WGS 84 / UTM zone 14N
+2   Sequoyah Multi Polygon        1     17 WGS 84 / UTM zone 14N
+3   Canadian Multi Polygon        1     17 WGS 84 / UTM zone 14N
+4     Harper Multi Polygon        1     17 WGS 84 / UTM zone 14N</code></pre>
+</div>
+</div>
+</section>
+<section id="delete-a-list-of-layers---deleting-2-layers" class="level3">
+<h3 class="anchored" data-anchor-id="delete-a-list-of-layers---deleting-2-layers">Delete a list of layers - deleting 2 layers</h3>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>delList <span class="ot">&lt;-</span> <span class="fu">head</span>(ShortList,<span class="dv">2</span>) <span class="co"># take the first 2 rows</span></span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a><span class="fu">lapply</span>(delList, <span class="cf">function</span>(y)sf<span class="sc">::</span><span class="fu">st_delete</span>(<span class="fu">paste0</span>(spatial_path, <span class="st">"OK_Counties2.gpkg"</span>), y))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Deleting layer `Adair' using driver `GPKG'
+Deleting layer `Sequoyah' using driver `GPKG'</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[[1]]
+[1] TRUE
+
+[[2]]
+[1] TRUE</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>sf<span class="sc">::</span><span class="fu">st_layers</span>(<span class="fu">paste0</span>(spatial_path, <span class="st">"OK_Counties2.gpkg"</span>)) <span class="co"># Check to see if it worked</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Driver: GPKG 
+Available layers:
+  layer_name geometry_type features fields              crs_name
+1   Canadian Multi Polygon        1     17 WGS 84 / UTM zone 14N
+2   Marshall Multi Polygon        1     17 WGS 84 / UTM zone 14N
+3     Harper Multi Polygon        1     17 WGS 84 / UTM zone 14N</code></pre>
+</div>
+</div>
+</section>
+</section>
+<section id="shapefiles" class="level1">
+<h1>Shapefiles</h1>
+<p>Shapefiles are the most common format for spatial data but they have some limitations. The format requires 4 separate files and column names and data are limited in length. When writing to a shapefile, column names may get truncated - this could be a problem if mulitple columns have similar names. Each layer requires a separate set of files. Writing the 77 layers in CountyList from above would require 4x77 files.</p>
+<section id="write-out-a-shape-file" class="level2">
+<h2 class="anchored" data-anchor-id="write-out-a-shape-file">Write out a shape file</h2>
+<section id="write-a-file-with-a-time-stamp-in-filename---this-works-with-any-filename---csv-xlsx-etc" class="level3">
+<h3 class="anchored" data-anchor-id="write-a-file-with-a-time-stamp-in-filename---this-works-with-any-filename---csv-xlsx-etc">Write a file with a time stamp in filename - This works with any filename - csv, xlsx etc</h3>
+<p><em>GDAL complains here because there are too many digits in the ALAND and AWATER fields - the answer is to not use a shape file.</em></p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>timestamp <span class="ot">&lt;-</span> <span class="fu">format</span>(<span class="fu">Sys.time</span>(), <span class="st">"%Y%m%d_%H%M"</span>)</span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>sf<span class="sc">::</span><span class="fu">st_write</span>(Adair, <span class="fu">paste0</span>(spatial_path, <span class="st">"Adair_County_"</span>, timestamp,<span class="st">".shp"</span>)) <span class="co">#Adair_County_20250305_1126.shp</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Writing layer `Adair_County_20250306_1527' to data source 
+  `G:/___R___/Spatial/spatial_output/Adair_County_20250306_1527.shp' using driver `ESRI Shapefile'
+Writing 1 features with 17 fields and geometry type Multi Polygon.</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Warning in CPL_write_ogr(obj, dsn, layer, driver,
+as.character(dataset_options), : GDAL Message 1: Value 1486345553 of field
+ALAND of feature 0 not successfully written. Possibly due to too larger number
+with respect to field width</code></pre>
+</div>
+</div>
+</section>
+</section>
+<section id="read-a-shape-file---the-one-we-just-wrote-out" class="level2">
+<h2 class="anchored" data-anchor-id="read-a-shape-file---the-one-we-just-wrote-out">Read a shape file - the one we just wrote out</h2>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb26"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a>Adair_Shape <span class="ot">&lt;-</span> sf<span class="sc">::</span><span class="fu">st_read</span>(<span class="fu">paste0</span>(spatial_path, <span class="st">"Adair_County_"</span>, timestamp,<span class="st">".shp"</span>)) <span class="co"># I cheated here - how?</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Reading layer `Adair_County_20250306_1527' from data source 
+  `G:\___R___\Spatial\spatial_output\Adair_County_20250306_1527.shp' 
+  using driver `ESRI Shapefile'
+Simple feature collection with 1 feature and 17 fields
+Geometry type: POLYGON
+Dimension:     XY
+Bounding box:  xmin: 878098.7 ymin: 3951961 xmax: 910033.5 ymax: 4011037
+Projected CRS: WGS 84 / UTM zone 14N</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb28"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(Adair_Shape<span class="sc">$</span>geometry)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="README_files/figure-html/st_read-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="clean-out-environment-and-reset" class="level2">
+<h2 class="anchored" data-anchor-id="clean-out-environment-and-reset">Clean out environment and reset</h2>
+<p>We’re done with all those objects in the environment pane so let’s do some house cleaning.<br>
+The following code will remove the objects and reload everything that we’ll need.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb29"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="fu">rm</span>(<span class="at">list=</span><span class="fu">ls</span>())</span>
+<span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a>base_path           <span class="ot">&lt;-</span> <span class="fu">find_rstudio_root_file</span>()                     </span>
+<span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a>source_path         <span class="ot">&lt;-</span> <span class="fu">file.path</span>(base_path, <span class="st">"source_data//"</span>)</span>
+<span id="cb29-4"><a href="#cb29-4" aria-hidden="true" tabindex="-1"></a>csv_path            <span class="ot">&lt;-</span> <span class="fu">file.path</span>(base_path, <span class="st">"csv_output//"</span>) </span>
+<span id="cb29-5"><a href="#cb29-5" aria-hidden="true" tabindex="-1"></a>dat_path            <span class="ot">&lt;-</span> <span class="fu">file.path</span>(base_path, <span class="st">"dat_output//"</span>)</span>
+<span id="cb29-6"><a href="#cb29-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-7"><a href="#cb29-7" aria-hidden="true" tabindex="-1"></a>TX_OK_Counties <span class="ot">&lt;-</span> tigris<span class="sc">::</span><span class="fu">counties</span>() <span class="sc">|&gt;</span> <span class="fu">filter</span>(STATEFP <span class="sc">==</span> <span class="st">"40"</span> <span class="sc">|</span> STATEFP <span class="sc">==</span> <span class="st">"48"</span>)</span>
+<span id="cb29-8"><a href="#cb29-8" aria-hidden="true" tabindex="-1"></a>TX_OK_Counties <span class="ot">&lt;-</span> sf<span class="sc">::</span><span class="fu">st_transform</span>(TX_OK_Counties, <span class="at">crs =</span> <span class="dv">32614</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+</section>
+<section id="comma-separated-values---csv" class="level1">
+<h1>Comma Separated Values - CSV</h1>
+<section id="write-to-csv" class="level2">
+<h2 class="anchored" data-anchor-id="write-to-csv">Write to csv</h2>
+<p>We don’t need all the rows so let’s filter some out</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="annotated-cell-19"><pre class="sourceCode r code-annotation-code code-with-copy code-annotated"><code class="sourceCode r"><span id="annotated-cell-19-1"><a href="#annotated-cell-19-1" aria-hidden="true" tabindex="-1"></a>  TexomaList <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"Marshall"</span>, <span class="st">"Bryan"</span>, <span class="st">"Cooke"</span>, <span class="st">"Grayson"</span>)</span>
+<button class="code-annotation-anchor" data-target-cell="annotated-cell-19" data-target-annotation="1">1</button><span id="annotated-cell-19-2" class="code-annotation-target"><a href="#annotated-cell-19-2" aria-hidden="true" tabindex="-1"></a>  TexomaCounties <span class="ot">&lt;-</span> TX_OK_Counties <span class="sc">|&gt;</span> <span class="fu">filter</span>(NAME <span class="sc">%in%</span> TexomaList)</span><div class="code-annotation-gutter-bg"></div><div class="code-annotation-gutter"></div></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-annotation">
+<dl class="code-annotation-container-hidden code-annotation-container-grid">
+<dt data-target-cell="annotated-cell-19" data-target-annotation="1">1</dt>
+<dd>
+<span data-code-cell="annotated-cell-19" data-code-lines="2" data-code-annotation="1">%in% is called an “infix” symbol</span>
+</dd>
+</dl>
+</div>
+</div>
+<section id="find-the-centroid-for-each-county-and-plot-it" class="level3">
+<h3 class="anchored" data-anchor-id="find-the-centroid-for-each-county-and-plot-it">Find the centroid for each county and plot it</h3>
+<p>This will give us a set of points. Saving polygons to a csv isn’t going to be all that useful - it would be really difficult to parse that out and get it back into a GIS system. If you aren’t going to use the polygon data it won’t matter.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb30"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a> TexomaCentroids <span class="ot">&lt;-</span> sf<span class="sc">::</span><span class="fu">st_centroid</span>(TexomaCounties)</span>
+<span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a>s <span class="ot">&lt;-</span> </span>
+<span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(TexomaCounties<span class="sc">$</span>geometry) <span class="sc">+</span> </span>
+<span id="cb30-4"><a href="#cb30-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">plot</span>(TexomaCentroids<span class="sc">$</span>geometry, <span class="at">add =</span> <span class="cn">TRUE</span>, <span class="at">pch =</span> <span class="dv">19</span>, <span class="at">col =</span> <span class="dv">2</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="README_files/figure-html/centroid-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="create-columns-for-coordinates-from-geometry-column" class="level3">
+<h3 class="anchored" data-anchor-id="create-columns-for-coordinates-from-geometry-column">Create columns for coordinates from geometry column</h3>
+<p>Already having columns for x and y will make it much easier to import this back into a GIS system.</p>
+</section>
+<section id="write-out-the-file" class="level3">
+<h3 class="anchored" data-anchor-id="write-out-the-file">Write out the file</h3>
+<p>I use a “.dat” extension so that I know that the date columns haven’t been modified accidentally by nosy people using excel(including myself). Otherwise they are just a csv.</p>
+</section>
+<section id="theres-too-many-columns---lets-get-rid-of-some" class="level3">
+<h3 class="anchored" data-anchor-id="theres-too-many-columns---lets-get-rid-of-some">There’s too many columns - let’s get rid of some</h3>
+<p><em>I use the names of characters from the Dilbert comic strip when I can’t come up with a meaningful data frame name.</em></p>
+<section id="select-by-column-name" class="level4">
+<h4 class="anchored" data-anchor-id="select-by-column-name">Select by column name</h4>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb31"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Include by column name</span></span>
+<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a>dilbert <span class="ot">&lt;-</span> Centroids <span class="sc">|&gt;</span> <span class="fu">select</span>(STATEFP, COUNTYFP, NAME, ALAND, AWATER, northing, easting )</span>
+<span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Exclude by column name</span></span>
+<span id="cb31-4"><a href="#cb31-4" aria-hidden="true" tabindex="-1"></a>wally <span class="ot">&lt;-</span> Centroids <span class="sc">|&gt;</span> <span class="fu">select</span>(<span class="sc">-</span>CBSAFP, <span class="sc">-</span>CLASSFP, <span class="sc">-</span>COUNTYNS, <span class="sc">-</span>CSAFP, <span class="sc">-</span>FUNCSTAT, <span class="sc">-</span>GEOID, <span class="sc">-</span>INTPTLAT,</span>
+<span id="cb31-5"><a href="#cb31-5" aria-hidden="true" tabindex="-1"></a>                             <span class="sc">-</span>INTPTLON,<span class="sc">-</span>METDIVFP,<span class="sc">-</span>MTFCC,<span class="sc">-</span>NAMELSAD, <span class="sc">-</span>LSAD )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="select-by-a-list-of-column-names" class="level4">
+<h4 class="anchored" data-anchor-id="select-by-a-list-of-column-names">Select by a list of column names</h4>
+<p>In this case I’m deleting everything in the list - if I remove the “-” in front of “all_of” I’d keep everything in the list.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb32"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a>delList <span class="ot">&lt;-</span>  <span class="fu">c</span>(<span class="st">"CBSAFP"</span>, <span class="st">"CLASSFP"</span>, <span class="st">"COUNTYNS"</span>, <span class="st">"CSAFP"</span>, <span class="st">"FUNCSTAT"</span>, <span class="st">"GEOID"</span>, <span class="st">"INTPTLAT"</span>,</span>
+<span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a>             <span class="st">"INTPTLON"</span>,<span class="st">"METDIVFP"</span>,<span class="st">"MTFCC"</span>,<span class="st">"NAMELSAD"</span>, <span class="st">"LSAD"</span> )</span>
+<span id="cb32-3"><a href="#cb32-3" aria-hidden="true" tabindex="-1"></a>alice <span class="ot">&lt;-</span> Centroids <span class="sc">|&gt;</span> <span class="fu">select</span>(<span class="sc">-</span><span class="fu">all_of</span>(delList))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="select-by-index-location" class="level4">
+<h4 class="anchored" data-anchor-id="select-by-index-location">Select by index (location)</h4>
+<p>Be careful with indexing columns. If for some reason the number of columns, or order of columns changes upstream, it will wreak havoc on your data frame.</p>
+<p>I use indexing when I first load a data frame - sometimes its easier to index a column than to type some bizarre column name.</p>
+<p>If the data frame is already in some type of workflow where the columns could change, I avoid indexing. But by then I’ve changed the column name to something reasonable anyway.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb33"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Include by index</span></span>
+<span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a>dogbert <span class="ot">&lt;-</span> Centroids <span class="sc">|&gt;</span> dplyr<span class="sc">::</span><span class="fu">select</span>(<span class="dv">1</span>,<span class="dv">5</span>,<span class="dv">14</span><span class="sc">:</span><span class="dv">19</span>)</span>
+<span id="cb33-3"><a href="#cb33-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-4"><a href="#cb33-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Exclude by index</span></span>
+<span id="cb33-5"><a href="#cb33-5" aria-hidden="true" tabindex="-1"></a>ratbert <span class="ot">&lt;-</span> Centroids <span class="sc">|&gt;</span> dplyr<span class="sc">::</span><span class="fu">select</span>(<span class="sc">-</span><span class="dv">2</span><span class="sc">:-</span><span class="dv">4</span>, <span class="sc">-</span><span class="dv">6</span><span class="sc">:-</span><span class="dv">13</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+</section>
+<section id="the-dogbert-data-frame-has-the-most-useful-data-so-lets-write-it-to-a-csv." class="level3">
+<h3 class="anchored" data-anchor-id="the-dogbert-data-frame-has-the-most-useful-data-so-lets-write-it-to-a-csv.">The dogbert data frame has the most useful data so lets write it to a csv.</h3>
+<p>I’m using the same name with a time stamp so it won’t overwrite what we did previously. It might be worthwhile to compare the files. Time stamps in file names are sometimes useful and other times not so much. Early in a project when I’m making lots of changes to the data I use them. Once I get downstream projects going that use the data, I take the time stamp off, so I don’t have to change the file name every time I reload it in downstream scripts.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb34"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a>timestamp <span class="ot">&lt;-</span> <span class="fu">format</span>(<span class="fu">Sys.time</span>(), <span class="st">"%Y%m%d_%H%M"</span>)</span>
+<span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a><span class="fu">write_csv</span>(dogbert, <span class="fu">paste0</span>(csv_path, <span class="st">"TexomaCountyCentroids"</span>, <span class="st">"_"</span>, timestamp, <span class="st">".csv"</span>))</span>
+<span id="cb34-3"><a href="#cb34-3" aria-hidden="true" tabindex="-1"></a><span class="fu">write_csv</span>(dogbert, <span class="fu">paste0</span>(dat_path, <span class="st">"TexomaCountyCentroids"</span>, <span class="st">"_"</span>, timestamp, <span class="st">".dat"</span>)) </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+</section>
+</section>
+<section id="read-from-a-csv-and-convert-to-an-sf-object" class="level1">
+<h1>Read from a csv and convert to an sf object</h1>
+<p>I used “Import Dataset” here because the file name was so long and my typing is so bad.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb35"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a>CountyCentroids <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="fu">paste0</span>(csv_path, <span class="st">"TexomaCountyCentroids_20250303_1434.csv"</span>), </span>
+<span id="cb35-2"><a href="#cb35-2" aria-hidden="true" tabindex="-1"></a>                         <span class="at">col_types =</span> <span class="fu">cols</span>(<span class="at">INTPTLAT =</span> <span class="fu">col_number</span>(), </span>
+<span id="cb35-3"><a href="#cb35-3" aria-hidden="true" tabindex="-1"></a>                                          <span class="at">INTPTLON =</span> <span class="fu">col_number</span>(), </span>
+<span id="cb35-4"><a href="#cb35-4" aria-hidden="true" tabindex="-1"></a>                                          <span class="at">northing =</span> <span class="fu">col_number</span>(), <span class="co"># these cols need to be numeric</span></span>
+<span id="cb35-5"><a href="#cb35-5" aria-hidden="true" tabindex="-1"></a>                                          <span class="at">easting =</span> <span class="fu">col_number</span>()))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<section id="convert-data-frame-with-coordinate-columns-to-sf-object" class="level2">
+<h2 class="anchored" data-anchor-id="convert-data-frame-with-coordinate-columns-to-sf-object">Convert data frame with coordinate columns to sf object</h2>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb36"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a>fred <span class="ot">&lt;-</span> CountyCentroids <span class="sc">|&gt;</span> sf<span class="sc">::</span><span class="fu">st_as_sf</span>(<span class="at">coords=</span><span class="fu">c</span>(<span class="st">"northing"</span>,<span class="st">"easting"</span>), <span class="at">crs=</span><span class="dv">32614</span>)</span>
+<span id="cb36-2"><a href="#cb36-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb36-3"><a href="#cb36-3" aria-hidden="true" tabindex="-1"></a>plot_name<span class="ot">&lt;-</span> </span>
+<span id="cb36-4"><a href="#cb36-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>() <span class="sc">+</span></span>
+<span id="cb36-5"><a href="#cb36-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_sf</span>(<span class="at">data =</span> TexomaCounties, <span class="fu">aes</span>(<span class="at">fill =</span> NAME)) <span class="sc">+</span></span>
+<span id="cb36-6"><a href="#cb36-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_sf</span>(<span class="at">data =</span> fred, <span class="at">color =</span> <span class="st">"green"</span>) <span class="sc">+</span></span>
+<span id="cb36-7"><a href="#cb36-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">legend.position =</span> <span class="st">"none"</span>) <span class="sc">+</span></span>
+<span id="cb36-8"><a href="#cb36-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggtitle</span>(<span class="fu">paste0</span>(<span class="st">"Hmmm... something's not quite right!"</span>)) </span>
+<span id="cb36-9"><a href="#cb36-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb36-10"><a href="#cb36-10" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(plot_name)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="README_files/figure-html/convert_sf1-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<section id="thats-not-what-we-were-after" class="level3">
+<h3 class="anchored" data-anchor-id="thats-not-what-we-were-after">That’s not what we were after!</h3>
+<p>Make sure you get x and y coords in right order</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="annotated-cell-27"><pre class="sourceCode r code-annotation-code code-with-copy code-annotated"><code class="sourceCode r"><span id="annotated-cell-27-1"><a href="#annotated-cell-27-1" aria-hidden="true" tabindex="-1"></a>fred <span class="ot">&lt;-</span> CountyCentroids <span class="sc">|&gt;</span> </span>
+<button class="code-annotation-anchor" data-target-cell="annotated-cell-27" data-target-annotation="1">1</button><span id="annotated-cell-27-2" class="code-annotation-target"><a href="#annotated-cell-27-2" aria-hidden="true" tabindex="-1"></a>  sf<span class="sc">::</span><span class="fu">st_as_sf</span>(<span class="at">coords=</span><span class="fu">c</span>(<span class="st">"easting"</span>,<span class="st">"northing"</span>), <span class="at">crs=</span><span class="dv">32614</span>)</span>
+<span id="annotated-cell-27-3"><a href="#annotated-cell-27-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="annotated-cell-27-4"><a href="#annotated-cell-27-4" aria-hidden="true" tabindex="-1"></a>plot_name<span class="ot">&lt;-</span> </span>
+<span id="annotated-cell-27-5"><a href="#annotated-cell-27-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>() <span class="sc">+</span></span>
+<span id="annotated-cell-27-6"><a href="#annotated-cell-27-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_sf</span>(<span class="at">data =</span> TexomaCounties, <span class="fu">aes</span>(<span class="at">fill =</span> NAME)) <span class="sc">+</span></span>
+<span id="annotated-cell-27-7"><a href="#annotated-cell-27-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_sf</span>(<span class="at">data =</span> fred, <span class="at">color =</span> <span class="st">"green"</span>) <span class="sc">+</span></span>
+<span id="annotated-cell-27-8"><a href="#annotated-cell-27-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">legend.position =</span> <span class="st">"none"</span>) <span class="sc">+</span></span>
+<span id="annotated-cell-27-9"><a href="#annotated-cell-27-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggtitle</span>(<span class="fu">paste0</span>(<span class="st">"That makes a little more sense."</span>)) </span>
+<span id="annotated-cell-27-10"><a href="#annotated-cell-27-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="annotated-cell-27-11"><a href="#annotated-cell-27-11" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(plot_name)</span><div class="code-annotation-gutter-bg"></div><div class="code-annotation-gutter"></div></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-annotation">
+<dl class="code-annotation-container-hidden code-annotation-container-grid">
+<dt data-target-cell="annotated-cell-27" data-target-annotation="1">1</dt>
+<dd>
+<span data-code-cell="annotated-cell-27" data-code-lines="2" data-code-annotation="1">Switched position of “easting” and “northing”</span>
+</dd>
+</dl>
+</div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="README_files/figure-html/convert_sf2-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<hr>
+<p>Additional challenges:</p>
+<p>These counties were intended to be those that surround Lake Texoma. One could argue that since I included Cooke county in the southwest I should probably include the county to the north of it as well (Love). How would you go about fixing that?</p>
+<p>There are a couple of columns in dogbert that look like lat/long coordinates - I wonder if they are centroids that were already in the TIGER data? How would you go about sorting that out?</p>
+<p>There’s two more columns that look like they contain area values for land and water. I don’t know what the units are but I suspect they might be square meters. How would you go about creating columns that converted those values to acres and square miles?</p>
+<hr>
+</section>
+</section>
+</section>
+
+</main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const onCopySuccess = function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  }
+  const getTextToCopy = function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+    text: getTextToCopy
+  });
+  clipboard.on('success', onCopySuccess);
+  if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+    // For code content inside modals, clipBoardJS needs to be initialized with a container option
+    // TODO: Check when it could be a function (https://github.com/zenorocha/clipboard.js/issues/860)
+    const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+      text: getTextToCopy,
+      container: window.document.getElementById('quarto-embedded-source-code-modal')
+    });
+    clipboardModal.on('success', onCopySuccess);
+  }
+    var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+    var mailtoRegex = new RegExp(/^mailto:/);
+      var filterRegex = new RegExp('/' + window.location.host + '/');
+    var isInternal = (href) => {
+        return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+    }
+    // Inspect non-navigation links and adorn them if external
+ 	var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+    for (var i=0; i<links.length; i++) {
+      const link = links[i];
+      if (!isInternal(link.href)) {
+        // undo the damage that might have been done by quarto-nav.js in the case of
+        // links that we want to consider external
+        if (link.dataset.originalHref !== undefined) {
+          link.href = link.dataset.originalHref;
+        }
+      }
+    }
+  function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+    const config = {
+      allowHTML: true,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start',
+    };
+    if (contentFn) {
+      config.content = contentFn;
+    }
+    if (onTriggerFn) {
+      config.onTrigger = onTriggerFn;
+    }
+    if (onUntriggerFn) {
+      config.onUntrigger = onUntriggerFn;
+    }
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      if (note) {
+        return note.innerHTML;
+      } else {
+        return "";
+      }
+    });
+  }
+  const xrefs = window.document.querySelectorAll('a.quarto-xref');
+  const processXRef = (id, note) => {
+    // Strip column container classes
+    const stripColumnClz = (el) => {
+      el.classList.remove("page-full", "page-columns");
+      if (el.children) {
+        for (const child of el.children) {
+          stripColumnClz(child);
+        }
+      }
+    }
+    stripColumnClz(note)
+    if (id === null || id.startsWith('sec-')) {
+      // Special case sections, only their first couple elements
+      const container = document.createElement("div");
+      if (note.children && note.children.length > 2) {
+        container.appendChild(note.children[0].cloneNode(true));
+        for (let i = 1; i < note.children.length; i++) {
+          const child = note.children[i];
+          if (child.tagName === "P" && child.innerText === "") {
+            continue;
+          } else {
+            container.appendChild(child.cloneNode(true));
+            break;
+          }
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(container);
+        }
+        return container.innerHTML
+      } else {
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        return note.innerHTML;
+      }
+    } else {
+      // Remove any anchor links if they are present
+      const anchorLink = note.querySelector('a.anchorjs-link');
+      if (anchorLink) {
+        anchorLink.remove();
+      }
+      if (window.Quarto?.typesetMath) {
+        window.Quarto.typesetMath(note);
+      }
+      // TODO in 1.5, we should make sure this works without a callout special case
+      if (note.classList.contains("callout")) {
+        return note.outerHTML;
+      } else {
+        return note.innerHTML;
+      }
+    }
+  }
+  for (var i=0; i<xrefs.length; i++) {
+    const xref = xrefs[i];
+    tippyHover(xref, undefined, function(instance) {
+      instance.disable();
+      let url = xref.getAttribute('href');
+      let hash = undefined; 
+      if (url.startsWith('#')) {
+        hash = url;
+      } else {
+        try { hash = new URL(url).hash; } catch {}
+      }
+      if (hash) {
+        const id = hash.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note !== null) {
+          try {
+            const html = processXRef(id, note.cloneNode(true));
+            instance.setContent(html);
+          } finally {
+            instance.enable();
+            instance.show();
+          }
+        } else {
+          // See if we can fetch this
+          fetch(url.split('#')[0])
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.getElementById(id);
+            if (note !== null) {
+              const html = processXRef(id, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      } else {
+        // See if we can fetch a full url (with no hash to target)
+        // This is a special case and we should probably do some content thinning / targeting
+        fetch(url)
+        .then(res => res.text())
+        .then(html => {
+          const parser = new DOMParser();
+          const htmlDoc = parser.parseFromString(html, "text/html");
+          const note = htmlDoc.querySelector('main.content');
+          if (note !== null) {
+            // This should only happen for chapter cross references
+            // (since there is no id in the URL)
+            // remove the first header
+            if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+              note.children[0].remove();
+            }
+            const html = processXRef(null, note);
+            instance.setContent(html);
+          } 
+        }).finally(() => {
+          instance.enable();
+          instance.show();
+        });
+      }
+    }, function(instance) {
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            div.style.left = 0;
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+        // Handle positioning of the toggle
+    window.addEventListener(
+      "resize",
+      throttle(() => {
+        elRect = undefined;
+        if (selectedAnnoteEl) {
+          selectCodeLines(selectedAnnoteEl);
+        }
+      }, 10)
+    );
+    function throttle(fn, ms) {
+    let throttle = false;
+    let timer;
+      return (...args) => {
+        if(!throttle) { // first call gets through
+            fn.apply(this, args);
+            throttle = true;
+        } else { // all the others get throttled
+            if(timer) clearTimeout(timer); // cancel #2
+            timer = setTimeout(() => {
+              fn.apply(this, args);
+              timer = throttle = false;
+            }, ms);
+        }
+      };
+    }
+      const annoteTargets = window.document.querySelectorAll('.code-annotation-anchor');
+      for (let i=0; i<annoteTargets.length; i++) {
+        const annoteTarget = annoteTargets[i];
+        const targetCell = annoteTarget.getAttribute("data-target-cell");
+        const targetAnnotation = annoteTarget.getAttribute("data-target-annotation");
+        const contentFn = () => {
+          const content = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          if (content) {
+            const tipContent = content.cloneNode(true);
+            tipContent.classList.add("code-annotation-tip-content");
+            return tipContent.outerHTML;
+          }
+        }
+        const config = {
+          allowHTML: true,
+          content: contentFn,
+          onShow: (instance) => {
+            selectCodeLines(instance.reference);
+            instance.reference.classList.add('code-annotation-active');
+            window.tippy.hideAll();
+          },
+          onHide: (instance) => {
+            unselectCodeLines();
+            instance.reference.classList.remove('code-annotation-active');
+          },
+          maxWidth: 300,
+          delay: [50, 0],
+          duration: [200, 0],
+          offset: [5, 10],
+          arrow: true,
+          trigger: 'click',
+          appendTo: function(el) {
+            return el.parentElement.parentElement.parentElement;
+          },
+          interactive: true,
+          interactiveBorder: 10,
+          theme: 'quarto',
+          placement: 'right',
+          positionFixed: true,
+          popperOptions: {
+            modifiers: [
+            {
+              name: 'flip',
+              options: {
+                flipVariations: false, // true by default
+                allowedAutoPlacements: ['right'],
+                fallbackPlacements: ['right', 'top', 'top-start', 'top-end', 'bottom', 'bottom-start', 'bottom-end', 'left'],
+              },
+            },
+            {
+              name: 'preventOverflow',
+              options: {
+                mainAxis: false,
+                altAxis: false
+              }
+            }
+            ]        
+          }      
+        };
+        window.tippy(annoteTarget, config); 
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>
